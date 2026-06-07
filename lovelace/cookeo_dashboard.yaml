@@ -15,23 +15,39 @@ cards:
       _{{ states('sensor.cookeo_etat') }}_
       {% endif %}
 
-  - type: horizontal-stack
+  # Jauges conditionnelles : affichées seulement quand la valeur est numérique
+  # (sinon la carte gauge affiche « l'entité n'est pas numérique » quand le Cookeo est hors ligne).
+  - type: grid
+    columns: 2
+    square: false
     cards:
-      - type: gauge
-        name: Progression
-        entity: sensor.cookeo_progression
-        unit: "%"
-        min: 0
-        max: 100
-        needle: true
-        severity: { green: 66, yellow: 33, red: 0 }
-      - type: gauge
-        name: Restant
-        entity: sensor.cookeo_temps_restant
-        unit: min
-        min: 0
-        max: 60
-        needle: true
+      - type: conditional
+        conditions:
+          - condition: numeric_state
+            entity: sensor.cookeo_progression
+            above: -1
+        card:
+          type: gauge
+          name: Progression
+          entity: sensor.cookeo_progression
+          unit: "%"
+          min: 0
+          max: 100
+          needle: true
+          severity: { green: 66, yellow: 33, red: 0 }
+      - type: conditional
+        conditions:
+          - condition: numeric_state
+            entity: sensor.cookeo_temps_restant
+            above: -1
+        card:
+          type: gauge
+          name: Restant
+          entity: sensor.cookeo_temps_restant
+          unit: min
+          min: 0
+          max: 60
+          needle: true
 
   - type: conditional
     conditions:
