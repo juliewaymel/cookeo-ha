@@ -1,4 +1,4 @@
-"""Client BLE Cookeo — handshake + commandes (CRC16-CCITT).
+"""Client BLE Cookeo — handshake, commandes (CRC16), décodage d'état.
 
 Séquence prouvée :
   1) connexion (appareil appairé/bondé au préalable)
@@ -13,7 +13,15 @@ import logging
 
 from bleak import BleakClient
 
-from .const import ACCESS_CODE, ACCESS_UUID, NOTIFY_UUID, WRITE_UUID
+from .const import (
+    ACCESS_CODE,
+    ACCESS_UUID,
+    CATEGORY,
+    NOTIFY_UUID,
+    STATE_MAP,
+    TYPE_DATA,
+    WRITE_UUID,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,9 +40,27 @@ def crc16_ccitt(data: bytes) -> int:
 
 
 def frame(hex_cmd: str) -> bytes:
-    """Construit la trame finale : payload + CRC16 (big-endian)."""
+    """payload + CRC16 (big-endian)."""
     data = bytes.fromhex(hex_cmd)
     return data + crc16_ccitt(data).to_bytes(2, "big")
+
+
+def decode_frame(data: bytes) -> dict:
+    """Décode une trame de notification -> dict lisible (best-effort).
+
+    Octets : [0]=type [1]=longueur [2]=catégorie(DATA_1) [3]=état(DATA_2) ...
+    """
+    out = {"raw": data.hex()}
+    if not data:
+        return out
+    t = data[0]
+    out["type"] = {0: "données", 6: "ACK", 21: "NAK"}.get(t, f"0x{t:02x}")
+    if t == TYPE_DATA and len(data) >= 4:
+        cat = data[2]
+        out["categorie"] = CATEGORY.get(cat, str(cat))
+        if cat == 0:  # état
+            out["etat"] = STATE_MAP.get(data[3], f"code {data[3]}")
+    return out
 
 
 class CookeoClient:
@@ -53,9 +79,7 @@ class CookeoClient:
     async def connect(self) -> None:
         self._client = BleakClient(self._target)
         await self._client.connect()
-        # 1) déverrouillage : code d'accès sur la char ACCESS
         await self._client.write_gatt_char(ACCESS_UUID, ACCESS_CODE, response=True)
-        # 2) notifications APRÈS le code d'accès
         await self._client.start_notify(NOTIFY_UUID, self._on_notify)
         await asyncio.sleep(0.4)
         _LOGGER.debug("Cookeo connecté + déverrouillé")
@@ -68,10 +92,9 @@ class CookeoClient:
 
     async def send_command(self, hex_cmd: str) -> None:
         if not self.is_connected:
-            raise RuntimeError("Cookeo non connecté")
+            await self.connect()
         await self._client.write_gatt_char(WRITE_UUID, frame(hex_cmd), response=True)
 
-    # raccourcis
     async def ask_state(self) -> None:
         await self.send_command("00020065")
 
@@ -82,10 +105,16 @@ class CookeoClient:
         await self.send_command("00020303")
 
     async def transfer_binary(self, data: bytes, is_recipe: bool = True) -> None:
-        """Transfère un binaire .cok (chunks de 17 octets, type + CRC16 par chunk)."""
+        """Transfère un binaire .cok (chunks de 17 octets, type + CRC16 par chunk).
+
+        NB : expérimental — le Cookeo attend aussi une trame d'init (000F…) avec
+        id/version/langue construites depuis les métadonnées catalogue, puis startRecipe.
+        """
+        if not self.is_connected:
+            await self.connect()
         prefix = "03" if is_recipe else "02"
         hexdata = data.hex()
-        chunks = -(-len(data) // 17)  # ceil
+        chunks = -(-len(data) // 17)
         for i in range(chunks):
             seg = hexdata[i * 34 : i * 34 + 34].ljust(34, "0")
             payload = prefix + seg

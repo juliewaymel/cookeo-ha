@@ -1,0 +1,23 @@
+send_command:
+  name: Envoyer une commande
+  description: Envoie une trame de commande brute (hex) au Cookeo (CRC16 ajouté automatiquement).
+  fields:
+    command:
+      name: Commande (hex)
+      description: "Payload hexadécimal, ex. 00020065 (demander l'état)."
+      required: true
+      example: "00020065"
+      selector:
+        text:
+
+send_recipe:
+  name: Envoyer une recette (.cok)
+  description: "Expérimental — télécharge un binaire de recette .cok et le transfère au Cookeo."
+  fields:
+    url:
+      name: URL du .cok
+      description: "URL du binaire recette (ex. https://sebplatform.api.groupe-seb.com/statics/original/<uuid>.cok)."
+      required: true
+      example: "https://sebplatform.api.groupe-seb.com/statics/original/6f20ebaf-5aa5-489e-9665-8011b8d67eef.cok"
+      selector:
+        text:
