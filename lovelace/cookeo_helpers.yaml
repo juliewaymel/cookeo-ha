@@ -1,0 +1,63 @@
+# Helpers + scripts pour piloter le Cookeo depuis le dashboard.
+# À inclure via un package :  homeassistant: packages: !include_dir_named packages
+# (copier ce fichier dans  config/packages/cookeo_helpers.yaml)
+
+input_text:
+  cookeo_recette_uuid:
+    name: UUID / URL recette .cok
+    icon: mdi:link-variant
+    max: 255
+  cookeo_recherche:
+    name: Recherche de recette
+    icon: mdi:magnify
+
+input_number:
+  cookeo_recette_id:
+    name: Identifiant recette
+    icon: mdi:identifier
+    min: 0
+    max: 9999999
+    step: 1
+    mode: box
+  cookeo_convives:
+    name: Convives
+    icon: mdi:account-group
+    min: 1
+    max: 12
+    step: 1
+    mode: box
+
+input_select:
+  cookeo_plat:
+    name: Type de plat
+    icon: mdi:silverware-fork-knife
+    options: [starter, main, dessert, express, secondi]
+    initial: main
+
+input_boolean:
+  cookeo_demarrer_apres_transfert:
+    name: Démarrer après transfert
+    icon: mdi:play-box
+
+script:
+  cookeo_envoyer_recette:
+    alias: Cookeo — envoyer la recette
+    icon: mdi:upload
+    sequence:
+      - service: cookeo.send_recipe
+        data:
+          uuid: "{{ states('input_text.cookeo_recette_uuid') }}"
+          recipe_id: "{{ states('input_number.cookeo_recette_id') | int }}"
+          start: "{{ is_state('input_boolean.cookeo_demarrer_apres_transfert','on') }}"
+          course: "{{ states('input_select.cookeo_plat') }}"
+          quantity: "{{ states('input_number.cookeo_convives') | int }}"
+
+  cookeo_lancer_recette:
+    alias: Cookeo — lancer la recette
+    icon: mdi:play
+    sequence:
+      - service: cookeo.start_recipe
+        data:
+          recipe_id: "{{ states('input_number.cookeo_recette_id') | int }}"
+          course: "{{ states('input_select.cookeo_plat') }}"
+          quantity: "{{ states('input_number.cookeo_convives') | int }}"

@@ -1,3 +1,5 @@
+<img src="icon.png" width="96" align="right" alt="Cookeo BLE">
+
 # Cookeo BLE — intégration Home Assistant
 
 Pilotez votre **Moulinex Cookeo Connect** (Bluetooth) depuis Home Assistant,
@@ -7,15 +9,33 @@ sans le cloud SEB. Protocole **reverse-engineeré** depuis l'app *Mon Cookeo*
 > ⚠️ Projet non officiel, non affilié au Groupe SEB. Usage personnel, à vos risques.
 
 ## Ce que ça fait
-- Connexion BLE locale au Cookeo (état, stop, validation « OK », suivi de cuisson).
-- Envoi de recettes : transfert d'un binaire `.cok` (chunks + CRC16) puis démarrage.
-- Les recettes `.cok` du catalogue Cookeo sont servies **publiquement** par SEB :
-  `https://sebplatform.api.groupe-seb.com/statics/original/<uuid>.cok`.
+- **Suivi de cuisson** : état, mode, progression (%), temps écoulé/restant, convives, étape.
+- **Contrôle** : boutons *Arrêter* / *Valider (OK)* / *Demander l'état* ; service `start_recipe`.
+- **Capteurs binaires** : cuisson en cours, maintien au chaud, recette active, erreur.
+- **Envoi de recettes** : transfert d'un binaire `.cok` (en-tête `000F…` + chunks + CRC16) puis démarrage optionnel.
+- **Recettes `.cok` publiques** : `https://sebplatform.api.groupe-seb.com/statics/original/<uuid>.cok`
+  (téléchargeables sans authentification ; la *recherche* catalogue requiert une clé API).
+- **Config** : boutons **🔗 Appairer** et **🧪 Tester la connexion** dans les options.
+
+## Entités
+| Plateforme | Entités |
+|---|---|
+| `sensor` | État, Mode, Progression, Temps restant/écoulé/total, Convives, Étape, Recette (id), Dernière trame |
+| `binary_sensor` | Cuisson, Maintien au chaud, Recette en cours, Erreur |
+| `button` | Arrêter, Valider (OK), Demander l'état |
+| `number` | Convives par défaut |
+
+## Services
+- `cookeo.start_recipe` — `recipe_id`, `course`, `quantity`
+- `cookeo.send_recipe` — `uuid` **ou** `url`, `recipe_id`, `version`, `category`, `start`, `course`, `quantity`
+- `cookeo.search_recipe` — `query` (réponse de service ; clé API requise)
+- `cookeo.send_command` — trame hex brute (CRC16 ajouté)
 
 ## Protocole (résumé)
 - **Service** `3c63cc60-364a-11e3-808b-0002a5d5c51b`
   - **Write** `471846e0-…` (commandes) · **Notify** `4fcc0f60-…` (état) · **Access** `672b49c0-…`
 - Trame = `payload hex` + **CRC16-CCITT** (poly `0x1021`, init `0`).
+- **Octets d'une trame d'état** : `[type][len][catégorie][état][menu][mode][temps total 3o][temps écoulé 3o]…`
 - **Handshake** : appairer (bond) → connecter → écrire le **code d'accès**
   `00 01 02 … 0F` sur *Access* → activer les **notifications** → envoyer les commandes.
 - Exemple : `ASK_STATE` = `00020065` → trame `000200655263` → réponse `01 02 01 01 3B C4`.
@@ -26,11 +46,16 @@ Détails complets dans [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 1. HACS → Intégrations → ⋮ → *Dépôt personnalisé* → `https://github.com/juliewaymel/cookeo-ha` (type *Integration*).
 2. Installer **Cookeo BLE**, redémarrer Home Assistant.
 3. Réglages → Appareils & services → *Ajouter* → **Cookeo BLE** (découverte Bluetooth ou MAC).
-4. Pré-requis : le Cookeo doit être **appairé** à l'adaptateur Bluetooth de HA une fois.
+4. **Appairer** : Options de l'intégration → *🔗 Appairer le Cookeo* (mettre le Cookeo en mode appairage), puis *🧪 Tester*.
+
+## Tableau de bord
+- `lovelace/cookeo_dashboard.yaml` : vue prête à l'emploi (cartes natives, jauges, minuteur, contrôles).
+- `lovelace/cookeo_helpers.yaml` : helpers + scripts pour envoyer/lancer une recette depuis l'UI
+  (copier dans `config/packages/`).
 
 ## Statut
 - ✅ Pilotage prouvé end-to-end (le Cookeo répond).
-- 🚧 Entités/flux de config en cours de finalisation.
+- 🚧 Envoi de recette `.cok` **expérimental** (en-tête + chunks implémentés ; à valider sur appareil appairé).
 
 ## Crédits
 Reverse-engineering & intégration : Julie Waymel. Décompilation jadx, analyse BLE via BlueZ.

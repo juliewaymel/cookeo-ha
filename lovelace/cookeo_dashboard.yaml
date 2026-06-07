@@ -1,0 +1,109 @@
+# Dashboard Cookeo — coller dans une nouvelle vue (mode YAML) ou via "Modifier le tableau de bord".
+# 100 % cartes natives HA (aucune dépendance HACS). Adapte les entity_id si tu as renommé l'appareil.
+title: Cookeo
+path: cookeo
+icon: mdi:pot-steam
+cards:
+  - type: markdown
+    content: |
+      # 🍲 Cookeo
+      {% if is_state('binary_sensor.cookeo_cuisson','on') %}
+      **Cuisson en cours** — {{ states('sensor.cookeo_etat') }}
+      {% elif is_state('binary_sensor.cookeo_maintien_au_chaud','on') %}
+      **Maintien au chaud** 🔥
+      {% else %}
+      _{{ states('sensor.cookeo_etat') }}_
+      {% endif %}
+
+  - type: horizontal-stack
+    cards:
+      - type: gauge
+        name: Progression
+        entity: sensor.cookeo_progression
+        unit: "%"
+        min: 0
+        max: 100
+        needle: true
+        severity: { green: 66, yellow: 33, red: 0 }
+      - type: gauge
+        name: Restant
+        entity: sensor.cookeo_temps_restant
+        unit: min
+        min: 0
+        max: 60
+        needle: true
+
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.cookeo_recette_active
+        state: "on"
+    card:
+      type: glance
+      title: Cuisson
+      columns: 3
+      entities:
+        - entity: sensor.cookeo_mode
+          name: Mode
+        - entity: sensor.cookeo_temps_ecoule
+          name: Écoulé
+        - entity: sensor.cookeo_temps_restant
+          name: Restant
+        - entity: sensor.cookeo_convives
+          name: Convives
+        - entity: sensor.cookeo_etape
+          name: Étape
+        - entity: sensor.cookeo_progression
+          name: Avancement
+
+  - type: entities
+    title: État
+    show_header_toggle: false
+    entities:
+      - entity: sensor.cookeo_etat
+        icon: mdi:pot-steam
+      - entity: binary_sensor.cookeo_cuisson
+      - entity: binary_sensor.cookeo_maintien_au_chaud
+      - entity: binary_sensor.cookeo_erreur
+
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Arrêter
+        icon: mdi:stop
+        icon_height: 42px
+        tap_action: { action: toggle }
+        entity: button.cookeo_arreter_la_recette
+        show_state: false
+      - type: button
+        name: Valider
+        icon: mdi:check
+        icon_height: 42px
+        entity: button.cookeo_valider_ok
+      - type: button
+        name: Rafraîchir
+        icon: mdi:refresh
+        icon_height: 42px
+        entity: button.cookeo_demander_l_etat
+
+  # --- Envoi / lancement de recette (nécessite le package cookeo_helpers.yaml) ---
+  - type: entities
+    title: 🍽️ Envoyer une recette (.cok)
+    entities:
+      - input_text.cookeo_recette_uuid
+      - input_number.cookeo_recette_id
+      - input_select.cookeo_plat
+      - input_number.cookeo_convives
+      - input_boolean.cookeo_demarrer_apres_transfert
+      - type: buttons
+        entities:
+          - entity: script.cookeo_envoyer_recette
+            name: Transférer
+            icon: mdi:upload
+          - entity: script.cookeo_lancer_recette
+            name: Lancer
+            icon: mdi:play
+    footer:
+      type: graph
+      entity: sensor.cookeo_progression
+      hours_to_show: 1
