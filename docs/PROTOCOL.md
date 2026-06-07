@@ -26,6 +26,26 @@ Validé : pilotage end-to-end le 07/06/2026 (le Cookeo répond `01 02 01 01 3B C
 `[LEN sur 2 octets][payload]` puis **+ CRC16-CCITT** (poly `0x1021`, init `0x0000`, MSB-first, 2 octets).
 La réponse suit le même format `[payload][CRC16]`.
 
+### Cartographie des octets (trame d'état décodée)
+`ByteUtils.getIntInHexAtIndex` est **1-based** → index N = octet `N-1` (0-based) :
+
+| Octet | Champ | Détail |
+|---|---|---|
+| 0 | TYPE | `0` données · `6` ACK · `21` NAK |
+| 1 | LEN | nb d'octets de payload (hors TYPE/LEN/CRC) |
+| 2 | DATA_1 | catégorie : `0` état · `1` biblio · `2` recette · `3` spécifique · `4` SAV |
+| 3 | DATA_2 | **état / écran courant** (cuisson=7, maintien=10/11, mode manuel=60…) |
+| 4 | DATA_3 | menu (manuel=5…) |
+| 5 | DATA_4 | mode (pression=0, douce=1, mijotage=2, four=3, chaud=4, réchauffe=5) — ou **code erreur** si état 19/20 |
+| 6‑8 | temps total | secondes, big-endian (états cuisson/maintien) |
+| 9‑11 | temps écoulé | secondes, big-endian |
+| 12‑15 | recette id | big-endian |
+| 16 | étape | index d'étape |
+| 17 | convives | nombre de portions |
+
+Progression (%) = `octet 6` sur les modes pression/four/réchauffe, sinon
+calculée `écoulé/total`. Auto-ACK : à chaque trame d'état, l'app renvoie `06`.
+
 ```python
 def crc16_ccitt(data: bytes) -> int:
     crc = 0
