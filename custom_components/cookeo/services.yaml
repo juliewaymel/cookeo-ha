@@ -10,14 +10,100 @@ send_command:
       selector:
         text:
 
+start_recipe:
+  name: Lancer une recette
+  description: Démarre une recette (résidente ou transférée) par son identifiant.
+  fields:
+    recipe_id:
+      name: Identifiant recette
+      description: ID numérique de la recette.
+      required: true
+      example: 12345
+      selector:
+        number:
+          mode: box
+          min: 0
+          max: 9999999
+    course:
+      name: Type de plat
+      description: entrée / plat / dessert / express / secondi.
+      default: main
+      selector:
+        select:
+          options:
+            - { value: starter, label: Entrée }
+            - { value: main, label: Plat }
+            - { value: dessert, label: Dessert }
+            - { value: express, label: Express }
+            - { value: secondi, label: Secondi }
+    quantity:
+      name: Convives
+      default: 2
+      selector:
+        number: { mode: box, min: 1, max: 12 }
+
 send_recipe:
   name: Envoyer une recette (.cok)
-  description: "Expérimental — télécharge un binaire de recette .cok et le transfère au Cookeo."
+  description: >-
+    Télécharge un binaire .cok (UUID ou URL publique /statics/original) et le
+    transfère au Cookeo, puis le démarre optionnellement.
   fields:
+    uuid:
+      name: UUID de la recette
+      description: "UUID du .cok public (ex. 6f20ebaf-5aa5-489e-9665-8011b8d67eef)."
+      example: "6f20ebaf-5aa5-489e-9665-8011b8d67eef"
+      selector:
+        text:
     url:
       name: URL du .cok
-      description: "URL du binaire recette (ex. https://sebplatform.api.groupe-seb.com/statics/original/<uuid>.cok)."
-      required: true
+      description: "Alternative : URL complète du binaire."
       example: "https://sebplatform.api.groupe-seb.com/statics/original/6f20ebaf-5aa5-489e-9665-8011b8d67eef.cok"
+      selector:
+        text:
+    recipe_id:
+      name: Identifiant recette
+      description: ID numérique (métadonnées catalogue) — requis pour l'en-tête de transfert.
+      required: true
+      example: 12345
+      selector:
+        number: { mode: box, min: 0, max: 9999999 }
+    version:
+      name: Version
+      default: "1.0"
+      selector:
+        text:
+    category:
+      name: Catégorie
+      default: 2
+      selector:
+        number: { mode: box, min: 0, max: 255 }
+    start:
+      name: Démarrer après transfert
+      default: false
+      selector:
+        boolean:
+    course:
+      name: Type de plat (si démarrage)
+      default: main
+      selector:
+        select:
+          options: [starter, main, dessert, express, secondi]
+    quantity:
+      name: Convives (si démarrage)
+      default: 2
+      selector:
+        number: { mode: box, min: 1, max: 12 }
+
+search_recipe:
+  name: Rechercher une recette
+  description: >-
+    Recherche par mots-clés dans le catalogue SEB (nécessite une clé API en
+    options). Retourne titres + identifiants. L'envoi par UUID/URL reste public.
+  fields:
+    query:
+      name: Recherche
+      description: Mots-clés.
+      required: true
+      example: poulet curry
       selector:
         text:

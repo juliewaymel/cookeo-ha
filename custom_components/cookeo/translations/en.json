@@ -1,0 +1,37 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Cookeo BLE",
+        "description": "Adresse MAC Bluetooth du Cookeo (ex. F0:B5:D1:A5:78:2A).",
+        "data": { "address": "Adresse Bluetooth" }
+      },
+      "confirm": {
+        "title": "Ajouter {name}",
+        "description": "Configurer le Cookeo {name} ? Pensez à l'appairer (Options) avant de l'utiliser."
+      }
+    },
+    "abort": {
+      "already_configured": "Ce Cookeo est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Cookeo — appairage & test",
+        "description": "{result}",
+        "menu_options": {
+          "pair": "🔗 Appairer le Cookeo",
+          "test": "🧪 Tester la connexion",
+          "settings": "⚙️ Clé API catalogue (recherche)"
+        }
+      },
+      "settings": {
+        "title": "Recherche de recettes (catalogue SEB)",
+        "description": "Clé API optionnelle. L'envoi par UUID/URL de .cok reste public, sans clé.",
+        "data": { "api_key": "Clé API catalogue SEB" }
+      }
+    }
+  }
+}
