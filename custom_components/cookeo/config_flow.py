@@ -33,7 +33,8 @@ class CookeoConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(info.address)
         self._abort_if_unique_id_configured()
         self._addr = info.address
-        self._name = info.name or DEFAULT_NAME
+        # Nom propre et stable côté UI (l'advertising « BLuE Cookeo » est technique).
+        self._name = DEFAULT_NAME
         self.context["title_placeholders"] = {"name": self._name}
         return await self.async_step_confirm()
 
