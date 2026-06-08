@@ -49,8 +49,9 @@ Détails complets dans [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 4. **Appairer** : Options de l'intégration → *🔗 Appairer le Cookeo* (mettre le Cookeo en mode appairage), puis *🧪 Tester*.
 
 ## Tableau de bord (livré avec l'intégration)
-- `custom_components/cookeo/dashboards/cookeo_dashboard.yaml` : vue prête à l'emploi (cartes natives, jauges conditionnelles, minuteur, contrôles, carte d'envoi de recette).
-- `custom_components/cookeo/dashboards/cookeo_helpers.yaml` : helpers + scripts pour envoyer/lancer une recette depuis l'UI (copier dans `config/packages/`, ou créer les helpers via l'UI).
+- `dashboards/cookeo_dashboard.yaml` : vue **cartes natives** (aucune dépendance), jauges conditionnelles, minuteur, contrôles, carte d'envoi.
+- `dashboards/cookeo_dashboard_mushroom.yaml` : vue **visuelle** (écran dégradé bordeaux, anneau de progression, chips). Requiert les cartes HACS **Mushroom**, **apexcharts-card**, **card-mod**.
+- `dashboards/cookeo_helpers.yaml` : helpers + scripts pour envoyer/lancer une recette depuis l'UI (copier dans `config/packages/`, ou créer les helpers via l'UI).
 
 ## Statut
 - ✅ Pilotage prouvé end-to-end (le Cookeo répond).

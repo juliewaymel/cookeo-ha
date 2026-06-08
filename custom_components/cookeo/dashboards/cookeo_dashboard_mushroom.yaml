@@ -1,0 +1,129 @@
+# Dashboard Cookeo « riche » — affichage visuel (écran dégradé, anneau de progression, chips).
+# Requiert ces cartes HACS : Mushroom, apexcharts-card, card-mod.
+# Import : Paramètres → Tableaux de bord → ⋮ → Nouveau (mode YAML) → coller.
+# entity_id supposent un appareil nommé « Cookeo ». Helpers d'envoi : cookeo_helpers.yaml.
+title: Cookeo
+views:
+  - title: Cookeo
+    path: cookeo
+    icon: mdi:pot-steam
+    cards:
+      - type: custom:mushroom-template-card
+        primary: Cookeo
+        secondary: >-
+          {{ 'Hors ligne — à appairer' if is_state('sensor.cookeo_etat','unavailable')
+          else states('sensor.cookeo_etat') }}
+        icon: mdi:pot-steam
+        icon_color: >-
+          {% if is_state('binary_sensor.cookeo_cuisson','on') %}red
+          {% elif is_state('binary_sensor.cookeo_maintien_au_chaud','on') %}orange
+          {% elif is_state('sensor.cookeo_etat','unavailable') %}grey
+          {% else %}pink{% endif %}
+        multiline_secondary: true
+        tap_action: { action: more-info }
+        card_mod:
+          style: >
+            ha-card { background: linear-gradient(135deg,#7c1c34 0%,#be4e6e 100%);
+            --primary-text-color:#fff; --secondary-text-color:rgba(255,255,255,.9);
+            --card-mod-icon-color:#fff; border:none; border-radius:18px; }
+
+      - type: conditional
+        conditions:
+          - condition: numeric_state
+            entity: sensor.cookeo_progression
+            above: -1
+        card:
+          type: custom:apexcharts-card
+          chart_type: radialBar
+          header: { show: false }
+          series:
+            - entity: sensor.cookeo_progression
+              name: Progression
+          apex_config:
+            chart: { height: 240 }
+            colors: ["#be4e6e"]
+            labels: ["Progression"]
+            plotOptions:
+              radialBar:
+                hollow: { size: "62%" }
+                dataLabels:
+                  name: { show: true, color: "#7c1c34" }
+                  value: { show: true, fontSize: "34px", color: "#7c1c34" }
+
+      - type: custom:mushroom-chips-card
+        alignment: center
+        chips:
+          - { type: entity, entity: binary_sensor.cookeo_cuisson, icon_color: red }
+          - { type: entity, entity: binary_sensor.cookeo_maintien_au_chaud, icon_color: orange }
+          - { type: entity, entity: sensor.cookeo_convives, icon: mdi:account-group }
+          - { type: entity, entity: binary_sensor.cookeo_erreur, icon_color: red }
+
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-template-card
+            primary: >-
+              {{ '—' if states('sensor.cookeo_temps_restant') in ['unknown','unavailable']
+              else states('sensor.cookeo_temps_restant') ~ ' min' }}
+            secondary: Temps restant
+            icon: mdi:timer-sand
+            icon_color: pink
+          - type: custom:mushroom-template-card
+            primary: >-
+              {{ '—' if states('sensor.cookeo_temps_ecoule') in ['unknown','unavailable']
+              else states('sensor.cookeo_temps_ecoule') ~ ' min' }}
+            secondary: Temps écoulé
+            icon: mdi:timer
+            icon_color: deep-purple
+
+      - type: custom:mushroom-title-card
+        title: ""
+        subtitle: Contrôles
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-template-card
+            primary: Arrêter
+            icon: mdi:stop
+            icon_color: red
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.cookeo_arreter_la_recette }
+          - type: custom:mushroom-template-card
+            primary: Valider
+            icon: mdi:check
+            icon_color: green
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.cookeo_valider_ok }
+          - type: custom:mushroom-template-card
+            primary: État
+            icon: mdi:refresh
+            icon_color: blue
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.cookeo_demander_l_etat }
+
+      - type: custom:mushroom-title-card
+        title: ""
+        subtitle: 🍽️ Envoyer une recette
+      - type: entities
+        show_header_toggle: false
+        entities:
+          - { entity: input_text.cookeo_recette_uuid, name: UUID / URL .cok }
+          - { entity: input_number.cookeo_recette_id, name: Identifiant recette }
+          - { entity: input_select.cookeo_plat, name: Type de plat }
+          - { entity: number.cookeo_convives_par_defaut, name: Convives }
+          - { entity: input_boolean.cookeo_demarrer_apres_transfert, name: Démarrer après transfert }
+          - type: buttons
+            entities:
+              - { entity: script.cookeo_envoyer_recette, name: Transférer, icon: mdi:upload }
+              - { entity: script.cookeo_lancer_recette, name: Lancer, icon: mdi:play }
+
+      - type: markdown
+        content: >
+          💡 UUID public d'exemple : `6f20ebaf-5aa5-489e-9665-8011b8d67eef` — le `.cok`
+          se télécharge sans compte. Transfert expérimental : Cookeo appairé requis.
