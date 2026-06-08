@@ -15,28 +15,37 @@
   #q { flex:1; min-width:200px; padding:10px 14px; border:none; border-radius:22px; font-size:15px;
        background:#fff; color:#222; outline:none; }
   .count { font-size:13px; color:#fff; opacity:.9; }
-  main { padding:16px; display:grid; gap:14px;
-         grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
+  .upd { font-size:11px; color:#fff; opacity:.75; margin-top:4px; }
+
+  /* --- liste --- */
+  #grid { padding:16px; display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
   .card { background:var(--card); border-radius:14px; overflow:hidden; cursor:pointer;
           transition:transform .12s, box-shadow .12s; display:flex; flex-direction:column; }
   .card:hover { transform:translateY(-3px); box-shadow:0 8px 22px #0008; }
   .card img { width:100%; height:140px; object-fit:cover; background:#333; }
   .card .body { padding:10px 12px; }
   .card .title { font-weight:600; font-size:14.5px; line-height:1.25; }
-  .card .meta { margin-top:6px; font-size:12px; color:var(--muted); display:flex; gap:10px; }
-  .chip { background:#3a2a30; color:var(--rose); padding:1px 8px; border-radius:10px; font-weight:600; }
-  dialog { border:none; border-radius:16px; padding:0; max-width:520px; width:92%;
-           background:var(--card); color:var(--txt); }
-  dialog::backdrop { background:#000a; }
-  dialog img { width:100%; height:220px; object-fit:cover; }
-  .dlg-body { padding:16px 18px 20px; }
-  .dlg-body h2 { margin:0 0 6px; }
-  .dlg-body ul { margin:10px 0 0; padding-left:20px; line-height:1.5; }
-  .dlg-x { position:absolute; top:10px; right:14px; background:#000a; border:none; color:#fff;
-           width:34px; height:34px; border-radius:50%; font-size:18px; cursor:pointer; }
-  .fid { font-size:11px; color:var(--muted); margin-top:12px; }
+  .card .meta { margin-top:6px; font-size:12px; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
+  .chip { background:#3a2a30; color:var(--rose); padding:1px 8px; border-radius:10px; font-weight:600; font-size:12px; }
   .empty { color:var(--muted); padding:40px; text-align:center; grid-column:1/-1; }
-  .upd { font-size:11px; color:#fff; opacity:.75; }
+
+  /* --- fiche (page active) --- */
+  #detail { max-width:760px; margin:0 auto; padding:0 0 40px; }
+  #detail .hero { position:relative; }
+  #detail .hero img { width:100%; max-height:340px; object-fit:cover; display:block; }
+  #back { position:sticky; top:0; z-index:6; display:flex; align-items:center; gap:8px;
+          width:100%; border:none; cursor:pointer; padding:12px 18px; font-size:15px; font-weight:600;
+          color:#fff; background:linear-gradient(135deg,var(--bx),var(--rose)); }
+  #detail .pad { padding:18px; }
+  #detail h2 { margin:6px 0 4px; font-size:24px; }
+  #detail .dmeta { color:var(--muted); font-size:14px; margin-bottom:10px; display:flex; gap:14px; flex-wrap:wrap; }
+  #detail h3 { color:var(--rose); font-size:17px; margin:22px 0 8px; }
+  #detail ul.ing { margin:0; padding-left:20px; line-height:1.7; }
+  #detail ol.steps { margin:0; padding-left:24px; }
+  #detail ol.steps li { margin-bottom:14px; line-height:1.55; }
+  #detail ol.steps li::marker { color:var(--rose); font-weight:700; }
+  #detail .stepbadges { margin-top:4px; display:flex; gap:6px; flex-wrap:wrap; }
+  .fid { font-size:11px; color:var(--muted); margin-top:24px; }
 </style>
 </head>
 <body>
@@ -48,75 +57,84 @@
   </div>
   <div class="upd" id="upd"></div>
 </header>
-<main id="grid"><div class="empty">Chargement du catalogue…</div></main>
 
-<dialog id="dlg">
-  <button class="dlg-x" onclick="dlg.close()">✕</button>
-  <img id="d-img" alt="">
-  <div class="dlg-body">
+<main id="list"><div id="grid"><div class="empty">Chargement du catalogue…</div></div></main>
+
+<section id="detail" hidden>
+  <button id="back">← Retour aux recettes</button>
+  <div class="hero"><img id="d-img" alt=""></div>
+  <div class="pad">
     <h2 id="d-title"></h2>
-    <div class="meta" id="d-meta" style="color:var(--muted);font-size:13px"></div>
-    <ul id="d-ing"></ul>
-    <h3 id="d-steps-h" style="margin:16px 0 4px;font-size:15px;color:var(--rose)">👩‍🍳 Préparation</h3>
-    <ol id="d-steps" style="margin:0;padding-left:20px;line-height:1.55"></ol>
+    <div class="dmeta" id="d-meta"></div>
+    <h3>🥕 Ingrédients</h3>
+    <ul class="ing" id="d-ing"></ul>
+    <h3 id="d-steps-h">👩‍🍳 Préparation</h3>
+    <ol class="steps" id="d-steps"></ol>
     <div class="fid" id="d-fid"></div>
   </div>
-</dialog>
+</section>
 
 <script>
 let RECIPES = [];
-const grid = document.getElementById('grid'), q = document.getElementById('q'),
-      countEl = document.getElementById('count'), dlg = document.getElementById('dlg');
+const grid=document.getElementById('grid'), q=document.getElementById('q'),
+      countEl=document.getElementById('count'),
+      listView=document.getElementById('list'), detailView=document.getElementById('detail');
 
-function render(list){
-  if(!list.length){ grid.innerHTML='<div class="empty">Aucune recette.</div>'; countEl.textContent='0'; return; }
-  countEl.textContent = list.length + ' recettes';
-  grid.innerHTML = '';
-  for(const r of list){
-    const c = document.createElement('div'); c.className='card';
-    c.innerHTML = `<img loading="lazy" src="${r.image||''}" alt="" onerror="this.style.opacity=.25">
-      <div class="body"><div class="title">${esc(r.title||'')}</div>
-      <div class="meta">${r.total_min?`<span>⏱ ${r.total_min} min</span>`:''}
-      ${r.ingredients&&r.ingredients.length?`<span>🥕 ${r.ingredients.length}</span>`:''}
-      ${r.yield?`<span class="chip">${esc(r.yield)} pers</span>`:''}</div></div>`;
-    c.onclick = ()=>showRecipe(r);
-    grid.appendChild(c);
-  }
-}
-function showRecipe(r){
-  document.getElementById('d-img').src = r.image||'';
-  document.getElementById('d-title').textContent = r.title||'';
-  document.getElementById('d-meta').textContent =
-    [r.total_min?`⏱ ${r.total_min} min`:'', r.yield?`${r.yield} pers`:''].filter(Boolean).join('  ·  ');
-  const ul = document.getElementById('d-ing'); ul.innerHTML='';
-  (r.ingredients||[]).forEach(i=>{ const li=document.createElement('li'); li.textContent=i; ul.appendChild(li); });
-  if(!(r.ingredients||[]).length){ ul.innerHTML='<li style="color:var(--muted)">Ingrédients non disponibles</li>'; }
-  const ol = document.getElementById('d-steps'); ol.innerHTML='';
-  const steps = r.steps||[];
-  document.getElementById('d-steps-h').style.display = steps.length ? '' : 'none';
-  steps.forEach(s=>{
-    const li=document.createElement('li');
-    let b='';
-    if(s.program) b += ` <span class="chip">${progName(s.program)}</span>`;
-    if(s.duration_s) b += ` <span class="chip">⏱ ${Math.round(s.duration_s/60)} min</span>`;
-    if(s.temp) b += ` <span class="chip">${s.temp}°C</span>`;
-    li.innerHTML = esc(s.desc||'') + b;
-    li.style.marginBottom='8px';
-    ol.appendChild(li);
-  });
-  document.getElementById('d-fid').textContent = 'id Cookeo : ' + (r.fid||'?');
-  dlg.showModal();
-}
 const PROG={'PROGRAM_200143':'Dorage doux','PROGRAM_200144':'Dorage moyen','PROGRAM_200063':'Dorage fort',
  'PROGRAM_200065':'Maintien chaud','PROGRAM_200068':'Pression ultra','PROGRAM_200067':'Cuisson pression',
  'PROGRAM_200066':'Pression douce','PROGRAM_200145':'Vapeur douce','PROGRAM_200146':'Vapeur forte',
  'PROGRAM_200064':'Mijotage doux','PROGRAM_200062':'Mijotage moyen','PROGRAM_200142':'Mijotage fort',
  'PROGRAM_200159':'Dorage','PROGRAM_200156':'Cuisson pression','PROGRAM_200157':'Pression douce',
  'PROGRAM_200158':'Cuisson lente','PROGRAM_200160':'Mijotage','PROGRAM_200161':'Maintien chaud','PROGRAM_REHEAT':'Réchauffage'};
-function progName(k){return PROG[k]||(k||'').replace('PROGRAM_','Prog ');}
-function esc(s){ return (s+'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+const progName = k => PROG[k] || (k||'').replace('PROGRAM_','Prog ');
+const esc = s => (s+'').replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+
+function render(list){
+  if(!list.length){ grid.innerHTML='<div class="empty">Aucune recette.</div>'; countEl.textContent='0'; return; }
+  countEl.textContent = list.length+' recettes';
+  grid.innerHTML='';
+  for(const r of list){
+    const c=document.createElement('div'); c.className='card';
+    c.innerHTML = `<img loading="lazy" src="${r.image||''}" alt="" onerror="this.style.opacity=.25">
+      <div class="body"><div class="title">${esc(r.title||'')}</div>
+      <div class="meta">${r.total_min?`<span>⏱ ${r.total_min} min</span>`:''}
+      ${r.ingredients&&r.ingredients.length?`<span>🥕 ${r.ingredients.length}</span>`:''}
+      ${r.yield?`<span class="chip">${esc(r.yield)} pers</span>`:''}</div></div>`;
+    c.addEventListener('click', ()=>showRecipe(r));
+    grid.appendChild(c);
+  }
+}
+
+function showRecipe(r){
+  document.getElementById('d-img').src = r.image||'';
+  document.getElementById('d-title').textContent = r.title||'';
+  document.getElementById('d-meta').innerHTML =
+    [r.total_min?`⏱ ${r.total_min} min`:'', r.yield?`👥 ${esc(r.yield)} pers`:''].filter(Boolean).map(x=>`<span>${x}</span>`).join('');
+  const ul=document.getElementById('d-ing'); ul.innerHTML='';
+  (r.ingredients||[]).forEach(i=>{ const li=document.createElement('li'); li.textContent=i; ul.appendChild(li); });
+  if(!(r.ingredients||[]).length) ul.innerHTML='<li style="color:var(--muted)">Non disponibles</li>';
+
+  const steps=r.steps||[];
+  document.getElementById('d-steps-h').style.display = steps.length ? '' : 'none';
+  const ol=document.getElementById('d-steps'); ol.innerHTML='';
+  steps.forEach(s=>{
+    const li=document.createElement('li');
+    let badges='';
+    if(s.program) badges+=`<span class="chip">${progName(s.program)}</span>`;
+    if(s.duration_s) badges+=`<span class="chip">⏱ ${Math.round(s.duration_s/60)} min</span>`;
+    if(s.temp) badges+=`<span class="chip">${s.temp}°C</span>`;
+    li.innerHTML = esc(s.desc||'').replace(/\n/g,'<br>') + (badges?`<div class="stepbadges">${badges}</div>`:'');
+    ol.appendChild(li);
+  });
+  document.getElementById('d-fid').textContent = 'id Cookeo : '+(r.fid||'?');
+  listView.hidden=true; detailView.hidden=false; window.scrollTo(0,0);
+}
+
+function back(){ detailView.hidden=true; listView.hidden=false; window.scrollTo(0,0); }
+document.getElementById('back').addEventListener('click', back);
+
 function filter(){
-  const t = q.value.trim().toLowerCase();
+  const t=q.value.trim().toLowerCase();
   if(!t) return render(RECIPES);
   render(RECIPES.filter(r =>
     (r.title||'').toLowerCase().includes(t) ||
