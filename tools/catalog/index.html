@@ -79,11 +79,11 @@ function render(list){
       <div class="meta">${r.total_min?`<span>⏱ ${r.total_min} min</span>`:''}
       ${r.ingredients&&r.ingredients.length?`<span>🥕 ${r.ingredients.length}</span>`:''}
       ${r.yield?`<span class="chip">${esc(r.yield)} pers</span>`:''}</div></div>`;
-    c.onclick = ()=>open(r);
+    c.onclick = ()=>showRecipe(r);
     grid.appendChild(c);
   }
 }
-function open(r){
+function showRecipe(r){
   document.getElementById('d-img').src = r.image||'';
   document.getElementById('d-title').textContent = r.title||'';
   document.getElementById('d-meta').textContent =
