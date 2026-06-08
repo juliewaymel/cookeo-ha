@@ -87,7 +87,7 @@ function showRecipe(r){
   document.getElementById('d-img').src = r.image||'';
   document.getElementById('d-title').textContent = r.title||'';
   document.getElementById('d-meta').textContent =
-    [r.total_min?`⏱ ${r.total_min} min`:'', r.yield?`�— ${r.yield} pers`:''].filter(Boolean).join('  ·  ');
+    [r.total_min?`⏱ ${r.total_min} min`:'', r.yield?`${r.yield} pers`:''].filter(Boolean).join('  ·  ');
   const ul = document.getElementById('d-ing'); ul.innerHTML='';
   (r.ingredients||[]).forEach(i=>{ const li=document.createElement('li'); li.textContent=i; ul.appendChild(li); });
   if(!(r.ingredients||[]).length){ ul.innerHTML='<li style="color:var(--muted)">Ingrédients non disponibles</li>'; }
@@ -124,7 +124,7 @@ function filter(){
 }
 q.addEventListener('input', filter);
 
-fetch('catalog.json?_='+Date.now()).then(r=>r.json()).then(d=>{
+fetch('catalog.json?_='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
   RECIPES = d.recipes||[];
   if(d.updated_ts) document.getElementById('upd').textContent =
     'Catalogue : '+RECIPES.length+' recettes · MAJ '+new Date(d.updated_ts*1000).toLocaleString('fr-FR');
