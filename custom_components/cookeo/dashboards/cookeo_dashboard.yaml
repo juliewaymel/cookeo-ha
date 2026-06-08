@@ -1,0 +1,105 @@
+# Dashboard Cookeo — livré avec l'intégration.
+# Import : Paramètres → Tableaux de bord → ⋮ → Nouveau (mode YAML) → coller, OU
+# coller dans l'éditeur brut (raw config) d'une vue.
+# Nécessite les helpers/scripts de dashboards/cookeo_helpers.yaml pour la carte d'envoi.
+# Les entity_id supposent un appareil nommé « Cookeo » (sensor.cookeo_*).
+title: Cookeo
+views:
+  - title: Cookeo
+    path: cookeo
+    icon: mdi:pot-steam
+    cards:
+      - type: markdown
+        content: |
+          # 🍲 Cookeo
+          {% if is_state('binary_sensor.cookeo_cuisson','on') %}
+          **Cuisson en cours** — {{ states('sensor.cookeo_etat') }}
+          {% elif is_state('binary_sensor.cookeo_maintien_au_chaud','on') %}
+          **Maintien au chaud** 🔥
+          {% elif is_state('sensor.cookeo_etat','unavailable') %}
+          _Cookeo hors ligne — à appairer / allumer._
+          {% else %}
+          _{{ states('sensor.cookeo_etat') }}_
+          {% endif %}
+
+      # Jauges conditionnelles : affichées seulement quand la valeur est numérique
+      # (sinon la carte gauge plante « l'entité n'est pas numérique » hors ligne).
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: conditional
+            conditions:
+              - condition: numeric_state
+                entity: sensor.cookeo_progression
+                above: -1
+            card:
+              type: gauge
+              name: Progression
+              entity: sensor.cookeo_progression
+              unit: "%"
+              min: 0
+              max: 100
+              needle: true
+              severity: { green: 66, yellow: 33, red: 0 }
+          - type: conditional
+            conditions:
+              - condition: numeric_state
+                entity: sensor.cookeo_temps_restant
+                above: -1
+            card:
+              type: gauge
+              name: Restant
+              entity: sensor.cookeo_temps_restant
+              unit: min
+              min: 0
+              max: 60
+              needle: true
+
+      - type: entities
+        title: Suivi de cuisson
+        show_header_toggle: false
+        entities:
+          - { entity: sensor.cookeo_etat, icon: mdi:pot-steam, name: État }
+          - { entity: sensor.cookeo_mode, name: Mode }
+          - { entity: sensor.cookeo_progression, name: Progression }
+          - { entity: sensor.cookeo_temps_restant, name: Temps restant }
+          - { entity: sensor.cookeo_temps_ecoule, name: Temps écoulé }
+          - { entity: sensor.cookeo_convives, name: Convives }
+
+      - type: entities
+        title: État de l'appareil
+        show_header_toggle: false
+        entities:
+          - binary_sensor.cookeo_cuisson
+          - binary_sensor.cookeo_maintien_au_chaud
+          - binary_sensor.cookeo_recette_en_cours
+          - binary_sensor.cookeo_erreur
+
+      - type: horizontal-stack
+        cards:
+          - { type: button, name: Arrêter, icon: mdi:stop, icon_height: 42px, entity: button.cookeo_arreter_la_recette }
+          - { type: button, name: Valider, icon: mdi:check, icon_height: 42px, entity: button.cookeo_valider_ok }
+          - { type: button, name: Rafraîchir, icon: mdi:refresh, icon_height: 42px, entity: button.cookeo_demander_l_etat }
+
+      # Carte d'envoi de recette (nécessite cookeo_helpers.yaml)
+      - type: entities
+        title: 🍽️ Envoyer une recette
+        show_header_toggle: false
+        entities:
+          - { entity: input_text.cookeo_recette_uuid, name: UUID / URL .cok }
+          - { entity: input_number.cookeo_recette_id, name: Identifiant recette }
+          - { entity: input_select.cookeo_plat, name: Type de plat }
+          - { entity: number.cookeo_convives_par_defaut, name: Convives }
+          - { entity: input_boolean.cookeo_demarrer_apres_transfert, name: Démarrer après transfert }
+          - type: buttons
+            entities:
+              - { entity: script.cookeo_envoyer_recette, name: Transférer, icon: mdi:upload }
+              - { entity: script.cookeo_lancer_recette, name: Lancer, icon: mdi:play }
+
+      - type: markdown
+        content: >
+          💡 UUID public d'exemple : `6f20ebaf-5aa5-489e-9665-8011b8d67eef`. Le
+          `.cok` se télécharge sur `sebplatform.api.groupe-seb.com/statics/original/<uuid>.cok`
+          (sans compte). L'`Identifiant recette` vient des métadonnées catalogue.
+          Transfert expérimental : Cookeo appairé requis.

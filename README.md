@@ -48,10 +48,9 @@ Détails complets dans [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 3. Réglages → Appareils & services → *Ajouter* → **Cookeo BLE** (découverte Bluetooth ou MAC).
 4. **Appairer** : Options de l'intégration → *🔗 Appairer le Cookeo* (mettre le Cookeo en mode appairage), puis *🧪 Tester*.
 
-## Tableau de bord
-- `lovelace/cookeo_dashboard.yaml` : vue prête à l'emploi (cartes natives, jauges, minuteur, contrôles).
-- `lovelace/cookeo_helpers.yaml` : helpers + scripts pour envoyer/lancer une recette depuis l'UI
-  (copier dans `config/packages/`).
+## Tableau de bord (livré avec l'intégration)
+- `custom_components/cookeo/dashboards/cookeo_dashboard.yaml` : vue prête à l'emploi (cartes natives, jauges conditionnelles, minuteur, contrôles, carte d'envoi de recette).
+- `custom_components/cookeo/dashboards/cookeo_helpers.yaml` : helpers + scripts pour envoyer/lancer une recette depuis l'UI (copier dans `config/packages/`, ou créer les helpers via l'UI).
 
 ## Statut
 - ✅ Pilotage prouvé end-to-end (le Cookeo répond).
