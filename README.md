@@ -53,9 +53,23 @@ Détails complets dans [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 - `dashboards/cookeo_dashboard_mushroom.yaml` : vue **visuelle** (écran dégradé bordeaux, anneau de progression, chips). Requiert les cartes HACS **Mushroom**, **apexcharts-card**, **card-mod**.
 - `dashboards/cookeo_helpers.yaml` : helpers + scripts pour envoyer/lancer une recette depuis l'UI (copier dans `config/packages/`, ou créer les helpers via l'UI).
 
+## Catalogue de recettes (consultation)
+Outils dans [`tools/catalog/`](tools/catalog/) :
+- `harvest.py` : moissonne les recettes **officielles Cookeo FR** via l'API SEB (header `apikey`,
+  fiche `/common-api/recipes/PRO/{fid}/`) → `catalog.json` (titre, photo HD, ingrédients,
+  étapes avec programme/durée/température). Échantillonne l'espace d'ids (pas de liste publique),
+  dédup par `groupingId`. Lancé en cron pour des MAJ incrémentales.
+- `index.html` : page web autonome (grille + recherche + fiche), à servir en statique
+  (nginx) et embarquer dans HA (`/local/` ou iframe).
+
 ## Statut
-- ✅ Pilotage prouvé end-to-end (le Cookeo répond).
-- 🚧 Envoi de recette `.cok` **expérimental** (en-tête + chunks implémentés ; à valider sur appareil appairé).
+- ✅ Pilotage prouvé end-to-end (le Cookeo répond : état, stop, OK, suivi de cuisson).
+- ✅ **Consultation** des recettes officielles : catalogue navigable (photos, ingrédients, étapes).
+- ⛔ **Envoi d'une recette du catalogue : non disponible.** Le Cookeo n'accepte que le transfert
+  de son binaire `.cok` propriétaire ; ces binaires ne sont **pas servis par l'API publique**
+  (réservés à une session compte authentifiée). L'envoi `.cok` fonctionne uniquement si on
+  connaît déjà l'UUID d'un binaire public (service `cookeo.send_recipe`, expérimental, à valider
+  sur appareil appairé). Pas de cuisson manuelle pilotable (elle se fait sur l'écran du Cookeo).
 
 ## Crédits
 Reverse-engineering & intégration : Julie Waymel. Décompilation jadx, analyse BLE via BlueZ.
