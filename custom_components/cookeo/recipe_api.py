@@ -1,12 +1,13 @@
 """Accès aux recettes Cookeo via l'API Groupe SEB.
 
-Deux niveaux :
-  * binaire `.cok` sur `/statics/original/<uuid>.cok` — PUBLIC, sans auth (confirmé).
-  * catalogue `/common-api/v3/recipes/PRO/...` — protégé (403 sans clé API).
+Découvert par reverse-engineering de l'app « Mon Cookeo » (07/06/2026) :
+  * binaire `.cok` et images sur `/statics/...` — PUBLIC, sans auth.
+  * fiche recette `/common-api/recipes/PRO/{fid}/` — header **`apikey`** requis
+    (clé du domaine PRO_COO, dans `assets/domain.json` de l'app).
 
-L'envoi par UUID/URL fonctionne donc sans cloud. La recherche par mots-clés
-nécessite une clé API (renseignée dans les options de l'intégration) ; sans clé,
-elle lève une erreur explicite plutôt que d'échouer en silence.
+Il n'existe pas d'endpoint de *liste/recherche* public : le browse de l'app passe
+par la synchro + les recommandations appareil. On récupère donc une recette par son
+**id fonctionnel** (entier). L'envoi `.cok` reste public (UUID/URL).
 """
 from __future__ import annotations
 
@@ -16,14 +17,18 @@ from typing import Any
 
 from aiohttp import ClientSession
 
-from .const import BINARY_URL, RECIPE_ENDPOINT, SEB_API
+from .const import (
+    BINARY_URL,
+    IMAGE_URL,
+    RECIPE_CONTENT_ENDPOINT,
+    SEB_API_KEY,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 _UUID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I
 )
-SEARCH_ENDPOINT = SEB_API + "/common-api/v3/recipes/PRO/"
 
 
 def cok_url(uuid: str) -> str:
@@ -31,16 +36,31 @@ def cok_url(uuid: str) -> str:
     return BINARY_URL.format(uuid=uuid)
 
 
+def image_url(uuid: str, size: str = "medium") -> str:
+    return IMAGE_URL.format(size=size, uuid=uuid)
+
+
 def extract_uuid(text: str) -> str | None:
     m = _UUID_RE.search(text or "")
     return m.group(0) if m else None
 
 
+def _api_headers(api_key: str | None) -> dict[str, str]:
+    """En-têtes du catalogue SEB. Le header `apikey` est celui validé en RE."""
+    return {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 12) MonCookeo",
+        "Accept": "application/json",
+        "apikey": api_key or SEB_API_KEY,
+    }
+
+
 async def download_cok(session: ClientSession, url_or_uuid: str) -> bytes:
     """Télécharge un binaire .cok depuis une URL complète ou un simple UUID."""
-    url = url_or_uuid
-    if not url_or_uuid.startswith("http"):
-        uuid = extract_uuid(url_or_uuid) or url_or_uuid
+    url = (url_or_uuid or "").strip()
+    if not url:
+        raise ValueError("UUID/URL .cok vide")
+    if not url.startswith("http"):
+        uuid = extract_uuid(url) or url
         url = cok_url(uuid)
     async with session.get(url) as resp:
         resp.raise_for_status()
@@ -50,77 +70,64 @@ async def download_cok(session: ClientSession, url_or_uuid: str) -> bytes:
     return data
 
 
-def _api_headers(api_key: str | None) -> dict[str, str]:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 12) MonCookeo",
-        "Accept": "application/json",
-    }
-    if api_key:
-        # En-tête le plus courant côté Groupe SEB ; ajusté si besoin via options.
-        headers["x-api-key"] = api_key
-        headers["apikey"] = api_key
-    return headers
-
-
 async def get_recipe(
-    session: ClientSession, variant_id: str, api_key: str | None = None
+    session: ClientSession, fid: str | int, api_key: str | None = None
 ) -> dict[str, Any]:
-    """Métadonnées d'une recette (dont binaries[].url .cok). Catalogue protégé."""
-    url = RECIPE_ENDPOINT.format(variant_id=variant_id)
+    """Fiche recette complète (JSON brut) par id fonctionnel. Header `apikey`."""
+    url = RECIPE_CONTENT_ENDPOINT.format(fid=fid)
     async with session.get(url, headers=_api_headers(api_key)) as resp:
-        if resp.status == 403:
+        if resp.status in (401, 403):
             raise PermissionError(
-                "Catalogue SEB protégé (403) : renseignez une clé API dans les options "
-                "ou utilisez directement l'UUID/URL du .cok."
+                "Catalogue SEB refusé (clé apikey invalide ?). Vérifiez la clé dans les options."
             )
         resp.raise_for_status()
         return await resp.json()
 
 
-def parse_recipe_meta(payload: dict[str, Any]) -> dict[str, Any]:
-    """Extrait id / version / catégorie / url .cok depuis la réponse catalogue."""
-    binaries = payload.get("binaries") or []
-    if not binaries and payload.get("packs"):
-        for pack in payload["packs"]:
-            binaries = pack.get("binaries") or []
-            if binaries:
-                break
-    binary = binaries[0] if binaries else {}
-    fid = (payload.get("groupingId") or {}).get("functionalId") or payload.get("id", "")
-    rid_match = re.search(r"(\d+)$", str(fid))
+def parse_recipe_card(payload: dict[str, Any]) -> dict[str, Any]:
+    """Extrait titre / image / ingrédients / étapes / binaire .cok pour l'affichage."""
+    ident = payload.get("identifier") or {}
+    cover = (payload.get("cover") or {}).get("media") or {}
+    yield_ = payload.get("yield") or {}
+
+    ingredients: list[str] = []
+    for ing in payload.get("aggregatedIngredients") or payload.get("ingredients") or []:
+        if isinstance(ing, dict):
+            label = ing.get("name") or ing.get("title") or ing.get("label")
+            if label:
+                ingredients.append(label)
+
+    steps: list[str] = []
+    for st in payload.get("steps") or []:
+        if isinstance(st, dict):
+            txt = st.get("title") or st.get("instruction") or st.get("description")
+            if txt:
+                steps.append(re.sub(r"<[^>]+>", "", str(txt)).strip())
+
+    # binaire .cok éventuel (selon le payload, sinon via la variante v3)
+    cok = None
+    for b in payload.get("binaries") or []:
+        if isinstance(b, dict) and b.get("url"):
+            cok = b["url"]
+            break
+
     return {
+        "fid": ident.get("functionalId"),
         "title": payload.get("title"),
-        "recipe_id": int(rid_match.group(1)) if rid_match else None,
-        "version": binary.get("version", "1.0"),
-        "url": binary.get("url"),
-        "checksum": binary.get("checksum"),
-        "category": (payload.get("category") or {}).get("id", 2),
+        "lang": payload.get("lang"),
+        "market": payload.get("market"),
+        "yield": yield_.get("quantityDisplay"),
+        "image": cover.get("medium") or cover.get("original") or cover.get("thumbnail"),
+        "image_uuid": extract_uuid(cover.get("key", "")),
+        "ingredients": ingredients,
+        "steps": steps,
+        "cok_url": cok,
+        "grouping_id": payload.get("groupingId"),
     }
 
 
-async def search_recipes(
-    session: ClientSession, query: str, api_key: str | None = None, size: int = 10
-) -> list[dict[str, Any]]:
-    """Recherche par mots-clés dans le catalogue PRO (nécessite une clé API)."""
-    params = {"search": query, "size": str(size), "domain": "PRO_COO"}
-    async with session.get(
-        SEARCH_ENDPOINT, params=params, headers=_api_headers(api_key)
-    ) as resp:
-        if resp.status == 403:
-            raise PermissionError(
-                "Recherche catalogue SEB protégée (403). Renseignez une clé API dans "
-                "les options de l'intégration Cookeo, ou envoyez par UUID/URL .cok."
-            )
-        resp.raise_for_status()
-        payload = await resp.json()
-    items = payload.get("content") or payload.get("results") or payload.get("hits") or []
-    out: list[dict[str, Any]] = []
-    for item in items[:size]:
-        out.append(
-            {
-                "title": item.get("title") or item.get("name"),
-                "variant_id": item.get("id") or item.get("variantId"),
-                "uuid": extract_uuid(str(item)),
-            }
-        )
-    return out
+async def get_recipe_card(
+    session: ClientSession, fid: str | int, api_key: str | None = None
+) -> dict[str, Any]:
+    """Fiche recette prête à afficher (titre/image/ingrédients/étapes)."""
+    return parse_recipe_card(await get_recipe(session, fid, api_key))

@@ -105,19 +105,19 @@ def _register_services(hass: HomeAssistant) -> None:
         await coord.async_request_refresh()
         return result
 
-    async def handle_search_recipe(call: ServiceCall) -> ServiceResponse:
+    async def handle_get_recipe(call: ServiceCall) -> ServiceResponse:
+        """Fiche d'une recette officielle Cookeo par id fonctionnel (header apikey)."""
         session = async_get_clientsession(hass)
         coord = _first_coordinator(hass)
         api_key = None
         if coord and coord.config_entry:
             api_key = coord.config_entry.options.get(CONF_API_KEY)
         try:
-            results = await recipe_api.search_recipes(
-                session, call.data["query"], api_key=api_key
+            return await recipe_api.get_recipe_card(
+                session, call.data["recipe_id"], api_key=api_key
             )
-            return {"results": results}
-        except PermissionError as err:
-            return {"error": str(err), "results": []}
+        except (PermissionError, Exception) as err:  # noqa: BLE001
+            return {"error": str(err)}
 
     hass.services.async_register(
         DOMAIN, "send_command", handle_send_command,
@@ -154,8 +154,8 @@ def _register_services(hass: HomeAssistant) -> None:
         supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
-        DOMAIN, "search_recipe", handle_search_recipe,
-        schema=vol.Schema({vol.Required("query"): cv.string}),
+        DOMAIN, "get_recipe", handle_get_recipe,
+        schema=vol.Schema({vol.Required("recipe_id"): cv.string}),
         supports_response=SupportsResponse.ONLY,
     )
 
@@ -166,6 +166,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await coordinator.client.disconnect()
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if not hass.data.get(DOMAIN):
-        for svc in ("send_command", "start_recipe", "send_recipe", "search_recipe"):
+        for svc in ("send_command", "start_recipe", "send_recipe", "get_recipe"):
             hass.services.async_remove(DOMAIN, svc)
     return unloaded

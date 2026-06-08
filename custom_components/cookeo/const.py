@@ -214,10 +214,18 @@ PROGRAMS = {
 DEFAULT_LANG = "fr"
 DEFAULT_REGION = "FR"
 
-# --- API SEB (catalogue + binaires recette .cok, /statics public sans auth) ---
+# --- API SEB (plateforme Groupe SEB) ---
+# Binaires .cok et images : /statics/... = PUBLIC sans auth.
+# Catalogue (fiche recette) : header `apikey` requis. Clé du domaine PRO_COO (Cookeo)
+# extraite de l'app (assets/domain.json). Surchargeable via les options de l'intégration.
 SEB_API = "https://sebplatform.api.groupe-seb.com"
+SEB_API_KEY = "GtPU4am4rpf83Zptq4xahtJsEytbrvKP"  # domaine PRO_COO
+# Fiche recette (contenu humain : titre, image, ingrédients, étapes) par id fonctionnel.
+RECIPE_CONTENT_ENDPOINT = SEB_API + "/common-api/recipes/PRO/{fid}/"
+# Variante appareil (binaires .cok) — variantId distinct de l'id fonctionnel.
 RECIPE_ENDPOINT = SEB_API + "/common-api/v3/recipes/PRO/{variant_id}/"
 BINARY_URL = SEB_API + "/statics/original/{uuid}.cok"
+IMAGE_URL = SEB_API + "/statics/{size}/{uuid}"  # size: original|thumb|medium
 
 # Délai de rafraîchissement par défaut du coordinator (secondes).
 DEFAULT_SCAN_INTERVAL = 20

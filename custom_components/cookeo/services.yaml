@@ -94,16 +94,16 @@ send_recipe:
       selector:
         number: { mode: box, min: 1, max: 12 }
 
-search_recipe:
-  name: Rechercher une recette
+get_recipe:
+  name: Fiche recette (officielle)
   description: >-
-    Recherche par mots-clés dans le catalogue SEB (nécessite une clé API en
-    options). Retourne titres + identifiants. L'envoi par UUID/URL reste public.
+    Récupère une recette officielle Cookeo par son identifiant fonctionnel
+    (titre, image, ingrédients, étapes) via l'API SEB (header apikey intégré).
   fields:
-    query:
-      name: Recherche
-      description: Mots-clés.
+    recipe_id:
+      name: Identifiant recette
+      description: ID fonctionnel numérique (ex. 954248).
       required: true
-      example: poulet curry
+      example: "954248"
       selector:
         text:
